@@ -24,6 +24,14 @@
 #define FALSE 0
 
 #define BUFFER_SIZE 256
+
+void couleur_rouge() { //coloration du texte en rouge
+    printf("\033[1;31m");
+}
+void couleur_reset () { //coloration du texte en blanc
+    printf("\033[0m");
+}
+
 // char (*liste_fichiers)[50];
 int saisieEntier(char* message){ //fonction de saisie entier avec verification et nettoyage de stdin
     int cmd;
@@ -49,7 +57,7 @@ void saisieListe(char *message, char* liste){
             chr = getchar(); //on évacue ce qui reste dans stdin
         } while ((chr != EOF) && (chr != '\n'));
 
-    printf("Saisir l'index des fichier que vous souhaitez télecharger (ex: 1 3 5): \n");
+    printf("Saisir les indices des fichier que vous souhaitez télecharger séparés par un espace(ex:1 3 5) : \n");
     fgets(liste, 20, stdin);
     
     /* On enleve \n. */
@@ -68,7 +76,7 @@ void list(int socket){
     int end=FALSE;
     printf("\n");
 
-    
+    couleur_rouge();
     while( end==FALSE && ((n = read( socket, nom_fichier, 256))>1)){ //lis les noms de fichiers un a un
             if(strcmp(nom_fichier, "")==0){
                 end=TRUE; //fin des fichiers
@@ -81,59 +89,74 @@ void list(int socket){
             }
             
     }
+    couleur_reset();
 }
 //flush
 void receiveFile(int socket){
     char *dir="../files_client";
     char nom_fichier[256];
     char path[256];
+    int stat;
+    int n;
 
-    int n=read(socket, nom_fichier, 256); //recois  le nom du fichier reçu
+    do{
+        n=read(socket, nom_fichier, 256); //recois  le nom du fichier reçu
+    }while(n<0);
     nom_fichier[n]='\0';
     //envoyer ok
-    write(socket, "file_ok", strlen("file_ok")); // pour empecher le serveur d'envoyer autre chose que le nom
 
-    printf("[...] Reception de %s\n", nom_fichier);
+    do{
+        stat=write(socket, "file_ok", strlen("file_ok")); // pour empecher le serveur d'envoyer autre chose que le nom
+    }while(stat<0);
+    printf("[...] Téléchargement en cours de %s\n", nom_fichier);
 
     sprintf(path, "%s/%s",dir, nom_fichier);
 
-    FILE *fichier= fopen(path, "w");
+    FILE *fichier= fopen(path, "wb");
     if (fichier == NULL) {
         perror("[-]Erreur ouverture fichier.\n");
-        // exit(-1);
+        exit(-1);
     }
-    else{
-        printf("[+]Ouverture fichier %s\n", path);
-    }
+ 
+    int taille;
+    
+    //recoit la taille
+    do{
+        stat = read(socket, &taille, sizeof(int));
+    }while(stat<0);
+    // printf("Taille attendu %d: (oct\n", taille);
+
+    do{
+        stat=write(socket, "taille_ok", strlen("taille_ok")); // pour empecher le serveur d'envoyer autre chose que le nom
+    }while(stat<0);
+
+
 
     char buffer[256];
-    int nb = read(socket, buffer, 256);
-    printf("read done\n");
  
     int end=FALSE;
     int nbWrite;
-    while (end==FALSE && nb > 0) {
-    // while (nb > 0) {
-        printf("[+]Telechargement... %d octets\n", nb);
-        nbWrite=fwrite(buffer, 1, nb, fichier);
-        // nbWrite=fwrite(buffer, nb, 1, fichier);
-        // fwrite(p_array, 1, nb, fichier);
-        nb = read(socket, buffer, 256);
-        printf("ecriture fichier: %d\n", nbWrite);
-        if(strncmp(buffer, "fin_fichier", 11)==0){
-            printf("[+] Fin fichier\n");
-            end=TRUE;
-        }
-        // printf("nb recu: %d\n", nb);
-        // printf("strlen(buffer)=%d\n", strlen(buffer));
-        // if(nb==3){ //on verifie que ce n'est pas la fin de l'envoie
-        //     printf("fin");
-        //     end=TRUE;
-        // }
-    }
-    fclose(fichier);
-    printf("[!] Fin Reception de %s\n", nom_fichier);
+    int nb=0;
+    int rcv_taille=0;
 
+    while (rcv_taille <taille) {
+        do{
+            nb = read(socket, buffer, sizeof(buffer));
+        }while(nb<0);
+        nbWrite=fwrite(buffer, 1, nb, fichier);
+        rcv_taille += nb;
+
+    }
+    //accusé de reception du fichier
+    do {
+        stat=write(socket, "done", sizeof("done"));
+    } while (stat<0);
+    
+    fclose(fichier);
+    // printf("[+] Transfert complet: %d octets reçus\n",downloaded);
+    couleur_rouge();
+    printf("[+] Transfert %s complet (%d octets)\n",nom_fichier, rcv_taille );
+    couleur_reset();
     
 }
 
@@ -165,6 +188,8 @@ void fetch(int socket){
     printf("nbFichiers %d\n", nbFichiers);
 
     for(int i = 0; i < nbFichiers; i++){
+        //sycnhroniser
+        printf("telechargement %d/%d\n", i+1, nbFichiers);
         receiveFile(socket);
     }
 }
@@ -172,9 +197,9 @@ void fetch(int socket){
 void promptList(int socket){ 
     int cmd;
     do{
-        cmd= saisieEntier("\n1. Télecharger un fichier de la liste\n0. Quitter\n\nCommandes (entrez un entier) ");
+        cmd= saisieEntier("\n1. Télecharger un fichier de la liste\n0. revenir en arrière\n\nCommandes (entrez un entier) ");
 
-    }while(cmd<0 && cmd>1);
+    }while(cmd<0 || cmd>1);
 
     write(socket,&cmd,sizeof(int)); //envoie la commande au serveur
     if(cmd==CMD_FETCH){
@@ -192,14 +217,18 @@ void push(){
 
 void prompt(int socket){
     int cmd;
+    int stat;
     do
     {
         cmd = saisieEntier("\n1. Liste des fichiers\n2. Envoyer un fichier\n0. Quitter\n\nCommande: (entrez un entier) ");
         // printf("cmd: %d\n", cmd);
         if(cmd>0 && cmd<=2){
-            if (write(socket, &cmd,sizeof(int))==-1){
-                perror("[+] erreur envoie commande");
-            }
+            do{
+                stat=write(socket, &cmd,sizeof(int));
+            }while(stat<0);
+            // if (==-1){
+            //     perror("[+] erreur envoie commande");
+            // }
             //attend reponse
             switch (cmd)
             {

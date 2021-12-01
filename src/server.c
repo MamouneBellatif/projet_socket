@@ -56,7 +56,7 @@ void checkSum(FILE *fichier){
     // char magic[]="P3\n"
 }
 
-void checkMime(char *filename){
+void checkMime(char *filename){ //a appeler après reception de fichier
 // string string string sscanf('%s %s %s', NULL, buffer, NULL);
      int fd[2];
      char *exec_arg[]={"file","-i", filename, NULL};
@@ -108,7 +108,7 @@ void checkMime(char *filename){
             }
 
             if (strcmp(type,"image/x-portable-pixmap")){
-                checksum();
+                checkSum(fichier);
             }
 
             if(authorized==TRUE){
@@ -131,6 +131,10 @@ void sendFile(char* nom_fichier, int socket){ //n'arrive pas a telecharger plusi
     //envoie du fichier nom_fichier
     char *dir="../files";
     char path[256];
+    int stat;
+    int taille;
+    char buffer_ok[256];
+
     sprintf(path, "%s/%s",dir, nom_fichier); //concatene repertoire au nom du fichier
 
     FILE *fichier = fopen(path, "rb"); //on ouvre le fichier en mode binaire  
@@ -144,34 +148,64 @@ void sendFile(char* nom_fichier, int socket){ //n'arrive pas a telecharger plusi
         printf("[+]Ouverture fichier %s\n", path);
     }
 
-    write(socket, nom_fichier, strlen(nom_fichier)); //Envoie le chemin et nom du fichier
-    
-    char buffer_ok[256];
-    read(socket, buffer_ok, 256); //attend ok du client pour commencer a telecharger le fichier
+    printf("writing name \n");
+    do{
+        stat=write(socket, nom_fichier, strlen(nom_fichier)); //Envoie le chemin et nom du fichier
+    }while(stat<0);
+
+    printf("reading name ok\n");
+    do{
+        stat=read(socket, buffer_ok, 256); //attend ok du client pour commencer a telecharger le fichier
+    }while(stat<0);
+
     if (strncmp(buffer_ok, "file_ok", 7)==0){ 
-        printf("[+]Debut telechargement");
+        printf("[+]ok nom\n");
     }
     //
 
     char send_buffer[256]; 
-    // int nb = fread(send_buffer, 1,256, fichier);
-    int nb = fread(send_buffer, 1,sizeof(send_buffer), fichier);
-    // int nb = fread(send_buffer, 1, sizeof(send_buffer), fichier);
-    
-    // printf("fread done\n");
 
+    
+
+    fseek(fichier, 0, SEEK_END);
+    taille = ftell(fichier);
+    fseek(fichier, 0, SEEK_SET);
+    printf("Taille: %i\n",taille);
+    //Send Picture Size
+    printf("writing size\n");
+    do{
+        stat=write(socket, (void *)&taille, sizeof(int));
+    }while (stat<0);
+    
+    printf("reading size_ok\n");
+    do{
+        stat=read(socket, buffer_ok, 256); //attend ok du client pour commencer a telecharger le fichier
+    }while(stat<0);
+
+    if (strncmp(buffer_ok, "taille_ok", strlen("taille_ok"))==0){ 
+        printf("[+]Debut telechargement (ok taille)\n");
+    }
+
+
+    // int nb = fread(send_buffer, 1, sizeof(send_buffer), fichier);
+    int nb;
     while (!feof(fichier))
     {
-        printf("[+]Telechargement... %d octets\n", nb);
-        write(socket, send_buffer, nb);
         nb = fread(send_buffer, 1, sizeof(send_buffer), fichier);
-        // nb = fread(send_buffer, 1, 256, fichier);
-        // nb = fread(send_buffer, 1, 256, fichier);
+        printf("[+]Telechargement... %d octets\n", nb);
+        do{
+            stat=write(socket, send_buffer, nb);
+        }while(stat<0);
         
-        // nb = fread(send_buffer, 1, sizeof(send_buffer), fichier);
-        // no need to bzero
+ 
     }
-    nb=write(socket, "fin_fichier", strlen("fin_fichier")); //on indique au client la fin de l'envoie
+
+    do{//attend la confirmation que le client a fini de telecharger
+        stat=read(socket, send_buffer, sizeof(send_buffer));
+    }while(stat<0);
+
+    // nb=write(socket, "fin_fichier", strlen("fin_fichier")); //on indique au client la fin de l'envoie
+     //on indique au client la fin de l'envoie
     // printf("Send stop nb: %d octets\n", nb);
     fclose(fichier);    
 
@@ -193,9 +227,9 @@ void getFileNames(int socket, char* index_array, int size){
     for (int i = 0; i < size; i++) //on extrait les index de la chaine reçu
     {
         if(index_array[i]!=' '){
-            // compteur_fichier++;
-            // // printf("index: %c\n",index_array[i]);
-            // index=atoi(&index_array[i]);
+            compteur_fichier++;
+            // printf("index: %c\n",index_array[i]);
+            index=atoi(&index_array[i]);
             
         }
     }
@@ -260,12 +294,14 @@ void service2(int socket){
     // printf("Debug: Service2()\n");
     char buffer[BUFFER_SIZE];
     int cmd;
+    int stat;
     do{
         printf("[...] En attente d'une commande\n");
         // printf("cmd avant %d\n", cmd);
         cmd=0; //si le client se deconnecte ou met la commande a 0
-        read(socket, &cmd, sizeof(int)); //lis la commande
-        // printf("cmd après %d\n", cmd);
+        do{
+            stat=read(socket, &cmd, sizeof(int)); //lis la commande
+        }while(stat<0);
         switch (cmd)
         {
         case CMD_LIST:
@@ -367,6 +403,7 @@ int main(int argc, char **argv){
                 close(socket_ecoute);
                 // service(socket_service);
                 service2(socket_service);
+                close(socket_service);
                 printf("[+]Fin connexion (pid %d)\n",getpid());
                 exit(0);
             break;
