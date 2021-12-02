@@ -215,7 +215,7 @@ void checkIndex(){
 
 }
 
-void parseInteger(){
+void fileExists(){
     
 }
 void getFileNames(int socket, char* index_array, int size){
@@ -224,38 +224,65 @@ void getFileNames(int socket, char* index_array, int size){
     int index; //index de fichier reçu
     int *index_list; // tableau des index a envoyer
     int compteur_fichier=0; //nombre de fichier a envoyer
-    for (int i = 0; i < size; i++) //on extrait les index de la chaine reçu
+
+    
+    for (int i = 0; i < size; i++) //on extrait les indices de la chaine reçu par le client
     {
         if(index_array[i]!=' '){
-            compteur_fichier++;
-            // printf("index: %c\n",index_array[i]);
-            index=atoi(&index_array[i]);
-            
+            if( ((i+1) < size) && index_array[i+1]!=' '){// si c'est un nombre a deux chiffre on ne compte que le deuxieme chiffre
+                
+            }
+            else{
+                compteur_fichier++;
+            }
         }
     }
 
-    index_list=malloc(compteur_fichier*sizeof(int)); //on alloue la taille de la liste d'indice
+    // do{
+    //     stat=write(socket, &compteur_fichier, sizeof(int));
+    // }while(stat<0);
     
+
+    index_list=malloc(compteur_fichier*sizeof(int)); //on alloue la taille de la liste d'indice
+    int stat;
+    char tmp[2];
     int cpt=0; //
+    int double_digit=FALSE;
     for (int i = 0; i < size; i++) //on erempli le tableau d'index
     {
-        if(index_array[i]!=' '){
-            index_list[cpt]=atoi(&index_array[i]);
-            cpt++;
+        if(index_array[i]!=' '){ //on prend en compte les nombres a deux chiffres
+            if( ((i+1) < size) && index_array[i+1]!=' '){ //si caractère non nulet caracère suivant non nul
+                tmp[0]=index_array[i]; //on ajoute ces deux caractère dans un tempon
+                tmp[1]=index_array[i+1];
+                index_list[cpt]=atoi(tmp); //on les convertit en entier
+                double_digit=TRUE; //on met le boolean a vrai pour ne pas compter deux fois a cause du deuxieme chiffre
+                cpt++;
+            }
+            else if(double_digit==FALSE){
+                index_list[cpt]=atoi(&index_array[i]);
+                cpt++;
+            }
+            
+        }
+        else{
+            double_digit=FALSE;
         }
     }
     
-    
+  
     DIR *repertoire;
     struct dirent *repertoire_entree;
     repertoire=opendir("../files");
     
     int i=-1;
     printf("Fichiers a envoyer: \n");
+    
     while((repertoire_entree=readdir(repertoire))!=NULL){
+    int file_exists=FALSE;
         if(i>=1){ //on ne prend pas en compte ./ et ../
             for(int j = 0; j<compteur_fichier; j++){ //on parcours la liste d'indice pour voir le fichier correspondant 
                 if(i==index_list[j]){
+                  file_exists=TRUE;
                   printf("fichier: %s\n", repertoire_entree->d_name);
                   sendFile(repertoire_entree->d_name, socket);
                 }

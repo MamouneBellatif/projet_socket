@@ -24,6 +24,7 @@
 #define FALSE 0
 
 #define BUFFER_SIZE 256
+int nbFichiers_total;
 
 void couleur_rouge() { //coloration du texte en rouge
     printf("\033[1;31m");
@@ -90,6 +91,8 @@ void list(int socket){
             
     }
     couleur_reset();
+    nbFichiers_total=index;
+    printf("fichier total: %d \n", nbFichiers_total);
 }
 //flush
 void receiveFile(int socket){
@@ -163,28 +166,54 @@ void receiveFile(int socket){
 int fileCount(char* index_array){
     int size=strlen(index_array);
     int compteur_fichier=0; //nombre de fichier a envoyer
-    for (int i = 0; i < size; i++) //on extrait les index de la chaine r1eçu
+    char tmp[2];
+    int exists=TRUE;
+    for (int i = 0; i < size; i++) //on extrait les indices de la chaine reçu par le client
     {
         if(index_array[i]!=' '){
-            compteur_fichier++;
+            if( ((i+1) < size) && index_array[i+1]!=' '){// si c'est un nombre a deux chiffre on ne compte que le deuxieme chiffre
+                tmp[0]=index_array[i]; //on ajoute ces deux caractère dans un tempon
+                tmp[1]=index_array[i+1];
+                printf("atoi %d > nbfichier%d\n",atoi(tmp), nbFichiers_total);
+                if(atoi(tmp)>nbFichiers_total){
+                    exists=FALSE;
+                    printf("indice %d trop grand \n",atoi(tmp));
+                }
+            }
+            else{
+                compteur_fichier++;
+            }
         }
     }
+    if(exists==FALSE){
+        compteur_fichier=-1;
+    }
+    printf("retour fileCount: %d\n", compteur_fichier);
     return compteur_fichier;
 }
 
 void fetch(int socket){
     char index_array[20]="";
     int nbFichiers;
-    // scanf("%19s", index_array); //%20s limite
-    saisieListe("\nSaisir l'index des fichier que vous souhaitez télecharger (ex: 1 3 5): \n", index_array);
-    printf("liste: %s\n", index_array);
-    if(write(socket, index_array, strlen(index_array))==-1){  //envoie les index des fichiers 
-        perror("[-] ecriture index list\n");
-    }
-    else{
+    int stat;
+    do{
+        saisieListe("\nSaisir l'index des fichier que vous souhaitez télecharger (ex: 1 3 5): \n", index_array);
+        printf("liste: %s\n", index_array);
+        nbFichiers=fileCount(index_array);
+        if(nbFichiers==-1){
+            printf("Appuiez sur Entrée pour recommencer...\n");
+        }
+    }while(nbFichiers==-1);
+    
+    // if(write(socket, index_array, strlen(index_array))==-1){  //envoie les index des fichiers 
+    //     perror("[-] ecriture index list\n");
+    // }
+    do{
+        stat=write(socket, index_array, strlen(index_array));
+    }while(stat<0);
         // printf("[+] envoie index list\n");
-    } //envoie la liste des fichiers a telecharger
-    nbFichiers=fileCount(index_array);
+     //envoie la liste des fichiers a telecharger
+    
     printf("nbFichiers %d\n", nbFichiers);
 
     for(int i = 0; i < nbFichiers; i++){
