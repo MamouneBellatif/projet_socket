@@ -415,21 +415,24 @@ void display(){
     
     int i=-1; //pour ne pas compter . et ..
     while( (existe == FALSE) && ((repertoire_entree=readdir(repertoire))!=NULL) ){
+        // printf("test file %s : %d | test  indice: %d\n",repertoire_entree->d_name, i, indice);
          if(i==indice){
+            printf("trouvé\n");
             strcpy(nom_fichier, repertoire_entree->d_name);
             existe=TRUE;
         }
+        i++;
     }
     closedir(repertoire);
 
     if(existe==TRUE){
-        sprintf(path, "%s/%s");
+        sprintf(path, "%s/%s", dir, nom_fichier);
         switch (fork()){  
             case -1 : 
             fprintf(stderr, "Erreur de fork\n"); 
             exit(-1);
             case 0 :;
-                char *arg_exec[]={"display",nom_fichier, NULL}; // on peut pas initiliser des variables apres le case 
+                char *arg_exec[]={"display",path, NULL}; // on peut pas initiliser des variables apres le case 
                 execvp("display",arg_exec);
                 exit(0);
             default : 
