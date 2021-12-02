@@ -211,14 +211,9 @@ void sendFile(char* nom_fichier, int socket){ //n'arrive pas a telecharger plusi
 
 }
 
-void checkIndex(){
 
-}
 
-void fileExists(){
-    
-}
-void getFileNames(int socket, char* index_array, int size){
+void getFileNames(int socket, char* index_array, int size){ //size= taille du tableau d'index
     //prendre en compte les index a deux chiffres
 
     int index; //index de fichier reçu
@@ -315,8 +310,86 @@ void getIndex(int socket){
     }
 }
 
-void receive(){
+void receiveFile(int socket){
+    char *dir="../files";
+    char nom_fichier[256];
+    char path[256];
+    int stat;
+    int n;
 
+    do{
+        n=read(socket, nom_fichier, 256); //recois  le nom du fichier a recevoir
+    }while(n<0);
+    nom_fichier[n]='\0';
+    //envoyer ok
+
+    do{
+        stat=write(socket, "file_ok", strlen("file_ok")); // pour empecher le serveur d'envoyer autre chose que le nom
+    }while(stat<0);
+    printf("[...] Téléchargement en cours de %s\n", nom_fichier);
+
+    sprintf(path, "%s/%s",dir, nom_fichier);
+
+    FILE *fichier= fopen(path, "wb");
+    if (fichier == NULL) {
+        perror("[-]Erreur ouverture fichier.\n");
+        exit(-1);
+    }
+ 
+    int taille;
+    
+    //recoit la taille
+    do{
+        stat = read(socket, &taille, sizeof(int));
+    }while(stat<0);
+    // printf("Taille attendu %d: (oct\n", taille);
+
+    do{
+        stat=write(socket, "taille_ok", strlen("taille_ok")); // pour empecher le serveur d'envoyer autre chose que le nom
+    }while(stat<0);
+
+
+
+    char buffer[256];
+ 
+    int end=FALSE;
+    int nbWrite;
+    int nb=0;
+    int rcv_taille=0;
+
+    while (rcv_taille <taille) {
+        do{
+            nb = read(socket, buffer, sizeof(buffer));
+        }while(nb<0);
+        nbWrite=fwrite(buffer, 1, nb, fichier);
+        rcv_taille += nb;
+
+    }
+    //accusé de reception du fichier
+    do {
+        stat=write(socket, "done", sizeof("done"));
+    } while (stat<0);
+    
+    fclose(fichier);
+    // printf("[+] Transfert complet: %d octets reçus\n",downloaded);
+    printf("[+] Transfert %s complet (%d octets)\n",nom_fichier, rcv_taille );
+}
+void getClientFiles(int socket){
+    
+    int nbFichiers;
+    int stat;
+
+    do{
+        stat=read(socket,&nbFichiers, sizeof(int));//lis le nombre de fichier a recevir
+    }while(stat<0);
+
+    do{
+        stat=write(socket, "nbfiles_ok", strlen("nbfiles_ok"));
+    }while(stat<0);
+
+    for(int i = 0; i < nbFichiers; i++){
+        receiveFile(socket);
+    }
 }
 
 void service2(int socket){
@@ -339,9 +412,8 @@ void service2(int socket){
             list(socket);
             getIndex(socket);
             break;
-        case CMD_PUSH:
-            receive();
-            cmd=0; //temporaire
+        case CMD_PUSH: //client qui push un fichier
+            getClientFiles(socket);
                 //reçois liste
                 //lis un fichier
         default:
