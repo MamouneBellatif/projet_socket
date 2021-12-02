@@ -30,6 +30,9 @@
 int nbFichiers_total;
 int nbFichiers_local;
 
+//./client im2ag-mandelbrot.univ-grenoble-alpes.fr 1332
+
+
 void couleur_rouge() { //coloration du texte en rouge
     printf("\033[1;31m");
 }
@@ -82,8 +85,12 @@ void list(int socket){
     printf("\n");
 
     couleur_rouge();
-    while( end==FALSE && ((n = read( socket, nom_fichier, 256))>1)){ //lis les noms de fichiers un a un
-            if(strcmp(nom_fichier, "")==0){
+    //while( end==FALSE && ((n = read( socket, nom_fichier, 256))>1)){ //lis les noms de fichiers un a un
+    while( end==FALSE && (n = read( socket, nom_fichier, 256))){ //lis les noms de fichiers un a un
+            //do{
+             //   n=read(socket,nom_fichier, 256);
+           // }while(n<0);
+            if(strcmp(nom_fichier, "\0")==0){
                 end=TRUE; //fin des fichiers
             }
             else{
@@ -102,7 +109,7 @@ void list(int socket){
 void receiveFile(int socket){
     char *dir="../files_client";
     char nom_fichier[256];
-    char path[256];
+    char path[500];
     int stat;
     int n;
 
@@ -118,7 +125,7 @@ void receiveFile(int socket){
     printf("[...] Téléchargement en cours de %s\n", nom_fichier);
 
     sprintf(path, "%s/%s",dir, nom_fichier);
-
+    printf("path: %s\n", path);
     FILE *fichier= fopen(path, "wb");
     if (fichier == NULL) {
         perror("[-]Erreur ouverture fichier.\n");
@@ -148,7 +155,7 @@ void receiveFile(int socket){
 
     while (rcv_taille <taille) {
         do{
-            nb = read(socket, buffer, sizeof(buffer));
+            nb = read(socket, buffer, 256);
         }while(nb<0);
         nbWrite=fwrite(buffer, 1, nb, fichier);
         rcv_taille += nb;
@@ -178,7 +185,7 @@ int fileCount(char* index_array, int total){
             if( ((i+1) < size) && index_array[i+1]!=' '){// si c'est un nombre a deux chiffre on ne compte que le deuxieme chiffre
                 tmp[0]=index_array[i]; //on ajoute ces deux caractère dans un tempon
                 tmp[1]=index_array[i+1];
-                if(atoi(tmp)>total){
+                if(atoi(tmp)>total || atoi(tmp)<=0){
                     exists=FALSE;
                     printf("indice %d trop grand \n",atoi(tmp));
                 }
@@ -221,17 +228,21 @@ void fetch(int socket){
         //sycnhroniser
         printf("telechargement %d/%d\n", i+1, nbFichiers);
         receiveFile(socket);
+        printf("\n");
     }
 }
 
 void promptList(int socket){ 
-
+    int stat;
     int cmd;
     do{
         cmd= saisieEntier("\n1. Télecharger un fichier de la liste\n0. revenir en arrière\n\nCommandes (entrez un entier) ");
     }while(cmd<0 || cmd>1);
 
-    write(socket,&cmd,sizeof(int)); //envoie la commande au serveur
+    do{
+        stat=write(socket,&cmd,sizeof(int)); //envoie la commande au serveur
+    }while(stat<0);
+
     if(cmd==CMD_FETCH){
         fetch(socket); //o
     }   
@@ -311,7 +322,7 @@ void sendFile(char *nom_fichier, int socket){
     }
 
     do{//attend la confirmation que le client a fini de telecharger
-        stat=read(socket, send_buffer, sizeof(send_buffer));
+        stat=read(socket, send_buffer, 256);
     }while(stat<0);
 
     // nb=write(socket, "fin_fichier", strlen("fin_fichier")); //on indique au client la fin de l'envoie
@@ -319,6 +330,11 @@ void sendFile(char *nom_fichier, int socket){
     // printf("Send stop nb: %d octets\n", nb);
     fclose(fichier);    
 
+    do{
+        stat=read(socket,send_buffer,256);
+    }while(stat<0);
+
+    printf("[+] %s\n", send_buffer);
 }
 
 void push(int socket){
@@ -407,7 +423,7 @@ void display(){
     int existe=FALSE;
     char *dir="../files_client";
     char nom_fichier[256];
-    char path[256];
+    char path[500];
     DIR *repertoire;
     struct dirent *repertoire_entree;
     repertoire=opendir("../files_client");
@@ -549,8 +565,9 @@ int main(int argc, char *argv[]){
     server.sin_family = AF_INET; //protocole internet
     server.sin_port = htons(port); //htons converti dans le bon format (netwrk byte order)
     // server.sin_addr.s_addr =INADDR_ANY; //ecoute sur toutes les interfactes
-    memcpy(&server.sin_addr.s_addr, host->h_addr, sizeof(host->h_addr));
+    memcpy(&server.sin_addr.s_addr, host->h_addr, host->h_length);
 
+    
     //demande de connexion
     if(connect(socket_client, (struct sockaddr *)&server, sizeof(server))==-1){
         perror("[-] Erreur connection socket...\n");

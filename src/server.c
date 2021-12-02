@@ -24,7 +24,10 @@
 //taille fichier
 // int nombre_fichiers;
 
+//./client im2ag-mandelbrot.univ-grenoble-alpes.fr 1332
+
 void list(int socket){
+    int stat;
     printf("[+]Envoie Liste fichiers\n");
     // printf("Debug: list()\n");
     char nom_fichier[256];
@@ -40,12 +43,17 @@ void list(int socket){
          if(fichiers_count > 2){
             // printf("Debug: envoie nom fichier %d\n", fichiers_count-2);
             strcpy(nom_fichier, repertoire_entree->d_name);
-            write(socket, nom_fichier, 256);
+            do{
+                stat=write(socket, nom_fichier, 256);
+            }while(stat<0);
             bzero(nom_fichier, 256);
         }
     }
-    write(socket, "\0", 256); //dit au client qu'il a fini d'envoyer les fichiers
-    // write(socket, '\0', 256); //dit au client qu'il a fini d'envoyer les fichiers
+    do{
+        //stat=write(socket, "fin_liste", strlen("fin_liste"));
+        stat=write(socket, "\0", 256); //dit au client qu'il a fini d'envoyer les fichiers // changer buffer
+    }while(stat<0);
+
     closedir(repertoire);
 
     // nombre_fichiers=fichiers_count;
@@ -54,12 +62,17 @@ void list(int socket){
 
 void checkSum(FILE *fichier){
     // char magic[]="P3\n"
+    
 }
 
-void checkMime(char *filename){ //a appeler après reception de fichier
+
+
+void checkMime(char *filename, int socket){ //a appeler après reception de fichier
 // string string string sscanf('%s %s %s', NULL, buffer, NULL);
+     int authorized=FALSE; //boolean pour l'authorisation du fichier
      int fd[2];
      char *exec_arg[]={"file","-i", filename, NULL};
+     int stat;
      pipe(fd);
      switch(fork()){
          case -1:
@@ -97,7 +110,6 @@ void checkMime(char *filename){ //a appeler après reception de fichier
              }
 
             char line_buffer[256]; //tempon de lecture du fichier contenant les types
-            int authorized=FALSE; //boolean pour l'authorisation du fichier
 
             //parcours les types enregistré dans le fichier et s'arrête lorsqu'il ya une correspondance
             while(authorized==FALSE && fgets(line_buffer, sizeof(line_buffer), fichier)){ 
@@ -108,18 +120,34 @@ void checkMime(char *filename){ //a appeler après reception de fichier
             }
 
             if (strcmp(type,"image/x-portable-pixmap")){
-                checkSum(fichier);
+                // checkSum(fichier);
             }
+            fclose(fichier);
+            
+            bzero(line_buffer, 256);
 
             if(authorized==TRUE){
                 printf("Autorisé\n");
+                // sscanf(line_buffer,"Fichier (type %s)autorisé et déposé dans files/\n",type);
+                strcpy(line_buffer,"Fichier autorisé et déposé dans files/ (type:");
+                strcat(line_buffer,type);
+                strcat(line_buffer,")\n");
             }
             else{
                 //delete fichier
-                printf("Interdit\n");
+                remove(filename);
+                printf("Format interdit, fichier supprimé\n");
+                strcpy(line_buffer,"Interdit, fichier supprimé (type:");
+                strcat(line_buffer,type);
+                strcat(line_buffer,")\n");
+                
             }
+
+            do{
+                write(socket, line_buffer, 256); //informe le client de l'autoriasation du fichier
+            }while(stat<0);
+
             
-            fclose(fichier);
 
             wait(NULL);
 
@@ -130,7 +158,7 @@ void checkMime(char *filename){ //a appeler après reception de fichier
 void sendFile(char* nom_fichier, int socket){ //n'arrive pas a telecharger plusieurs fichier et ne telecharge pas jusqua la fin
     //envoie du fichier nom_fichier
     char *dir="../files";
-    char path[256];
+    char path[500];
     int stat;
     int taille;
     char buffer_ok[256];
@@ -296,11 +324,16 @@ void getIndex(int socket){
     int n;
     int cmd;
     char index_array[20]="";
-    read(socket, &cmd, sizeof(int)); //verifie que l'utilisateur veux recuperer des fichiers
+    int stat;
+    do{
+        stat=read(socket, &cmd, sizeof(int)); //verifie que l'utilisateur veux recuperer des fichiers
+    }while(stat<0);
     // printf("Commande2: %d\n", cmd);
     if(cmd==CMD_FETCH){
         // printf("cmd_fetch\n");
-        n=read(socket, index_array, 20); //lis le write de client.fetch()
+        do{
+             n=read(socket, index_array, 20); //lis le write de client.fetch()
+        }while(n<0);
         index_array[n]='\n';
         // printf("fichiers a telecharger : %s\n n=%d \n", index_array,n);
         getFileNames(socket, index_array, n);
@@ -313,7 +346,7 @@ void getIndex(int socket){
 void receiveFile(int socket){
     char *dir="../files";
     char nom_fichier[256];
-    char path[256];
+    char path[500];
     int stat;
     int n;
 
@@ -372,7 +405,10 @@ void receiveFile(int socket){
     
     fclose(fichier);
     // printf("[+] Transfert complet: %d octets reçus\n",downloaded);
-    printf("[+] Transfert %s complet (%d octets)\n",nom_fichier, rcv_taille );
+    printf("[+] Transfert %s complet (%d octets)\n",nom_fichier, rcv_taille);
+
+    checkMime(path, socket);
+    
 }
 void getClientFiles(int socket){
     
@@ -447,7 +483,7 @@ int main(int argc, char **argv){
     int socket_service;
     struct sockaddr_in server; //Structure serveur
     struct sockaddr_in client; //Strcuture client
-    int taille;
+    socklen_t taille; //3eme argument  de accept
     //création socket
     socket_ecoute = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -463,8 +499,8 @@ int main(int argc, char **argv){
     //on initialise Lhost et Lport 
     server.sin_family = AF_INET; //protocole internet
     server.sin_port = htons(port); //htons converti dans le bon format (netwrk byte order)
-    // server.sin_addr.s_addr =INADDR_ANY; //ecoute sur toutes les interfactes
-    server.sin_addr.s_addr =inet_addr("127.0.0.1"); //ecoute sur local host
+    server.sin_addr.s_addr =INADDR_ANY; //ecoute sur toutes les interfactes
+    // server.sin_addr.s_addr =inet_addr("127.0.0.1"); //ecoute sur local host
 
     //attachement socket (adressaeet port) ("bind")
     if(bind(socket_ecoute, (struct sockaddr *)&server, sizeof(server))==-1){
@@ -489,9 +525,14 @@ int main(int argc, char **argv){
     //affectation sigaction
     ac.sa_handler = handler;
     ac.sa_flags = SA_RESTART;
-
+    char hostname[256];
+    gethostname(hostname, 256);
+    printf("[+]hostname: %s\n",hostname);
     //Acceptation de connection ("accept")
+
+    
     while(1){
+        taille=sizeof(client);
         socket_service=accept(socket_ecoute, (struct sockaddr *)&client, &taille);
         switch(fork()){
             case -1:
