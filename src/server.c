@@ -22,10 +22,10 @@
 #define TRUE 1
 #define FALSE 0
 //taille fichier
-int nombre_fichiers;
+// int nombre_fichiers;
 
 void list(int socket){
-
+    printf("[+]Envoie Liste fichiers\n");
     // printf("Debug: list()\n");
     char nom_fichier[256];
     
@@ -48,7 +48,7 @@ void list(int socket){
     // write(socket, '\0', 256); //dit au client qu'il a fini d'envoyer les fichiers
     closedir(repertoire);
 
-    nombre_fichiers=fichiers_count;
+    // nombre_fichiers=fichiers_count;
     //envoie des fichiers
 }
 
@@ -293,6 +293,7 @@ void getFileNames(int socket, char* index_array, int size){
     closedir(repertoire);
     printf("[+] Fin telechargement\n");
     
+    //free(index_list)
 }
 
 void getIndex(int socket){
@@ -314,9 +315,10 @@ void getIndex(int socket){
     }
 }
 
-void push(){
+void receive(){
 
 }
+
 void service2(int socket){
     // printf("Debug: Service2()\n");
     char buffer[BUFFER_SIZE];
@@ -338,8 +340,8 @@ void service2(int socket){
             getIndex(socket);
             break;
         case CMD_PUSH:
-                push();
-                cmd=0; //temporaire
+            receive();
+            cmd=0; //temporaire
                 //reçois liste
                 //lis un fichier
         default:

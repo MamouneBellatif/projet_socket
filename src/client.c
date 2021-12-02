@@ -11,13 +11,16 @@
 #include <signal.h>
 #include <netdb.h>
 #include <string.h>
+#include <dirent.h>
 
 #define h_addr h_addr_list[0] //pour vscode, enlever
 
 #define CMD_EXIT 0
 #define CMD_LIST 1
-#define CMD_PUSH 2
+#define CMD_LIST_LOCAL 2
 #define CMD_FETCH 1
+#define CMD_PUSH 2
+#define CMD_DISPLAY 1
 
 
 #define TRUE 1
@@ -25,6 +28,7 @@
 
 #define BUFFER_SIZE 256
 int nbFichiers_total;
+int nbFichiers_local;
 
 void couleur_rouge() { //coloration du texte en rouge
     printf("\033[1;31m");
@@ -224,10 +228,10 @@ void fetch(int socket){
 }
 
 void promptList(int socket){ 
+
     int cmd;
     do{
         cmd= saisieEntier("\n1. Télecharger un fichier de la liste\n0. revenir en arrière\n\nCommandes (entrez un entier) ");
-
     }while(cmd<0 || cmd>1);
 
     write(socket,&cmd,sizeof(int)); //envoie la commande au serveur
@@ -239,38 +243,120 @@ void promptList(int socket){
 }
 
 void push(){
+    
 
 }
 
+void display(){
+    int indice=saisieEntier("Entrez l'indice du fichier que vous voulez afficher \n");
+    int existe=FALSE;
+    char *dir="../files_client";
+    char nom_fichier[256];
+    char path[256];
+    DIR *repertoire;
+    struct dirent *repertoire_entree;
+    repertoire=opendir("../files_client");
+    
+    
+    int i=-1; //pour ne pas compter . et ..
+    while( (existe == FALSE) && ((repertoire_entree=readdir(repertoire))!=NULL) ){
+         if(i==indice){
+            strcpy(nom_fichier, repertoire_entree->d_name);
+            existe=TRUE;
+        }
+    }
+    closedir(repertoire);
 
+    if(existe==TRUE){
+        sprintf(path, "%s/%s");
+        switch (fork()){  
+            case -1 : 
+            fprintf(stderr, "Erreur de fork\n"); 
+            exit(-1);
+            case 0 :;
+                char *arg_exec[]={"display",nom_fichier, NULL}; // on peut pas initiliser des variables apres le case 
+                execvp("display",arg_exec);
+                exit(0);
+            default : 
+                wait(NULL);
+                break;
+        }
+    }
+}
+
+void promptListLocal(int socket){
+    int cmd;
+    int stat;
+
+    do{
+        cmd= saisieEntier("\n1.Afficher une image \n2. Envoyer un ou des fichiers au serveur\n0. Retour\nCommandes (entrez un entier) ");
+    }while(cmd<0 || cmd>2);
+
+    switch (cmd){
+    case CMD_PUSH:
+
+        do{
+            stat=write(socket, &cmd, sizeof(int)); //envoie commande au server
+        }while(stat<0);
+        
+        push(socket); 
+        break;
+    case CMD_DISPLAY:
+        //affiche et reviens au prompt initial
+        display();
+        break;
+
+    default:
+        break;
+    }
+ 
+}
+void listLocal(){
+    
+    char nom_fichier[256];
+    DIR *repertoire;
+    struct dirent *repertoire_entree;
+    repertoire=opendir("../files_client");
+    //compteur
+    int fichiers_count=0; //pour ne pas compter . et ..
+    couleur_rouge();
+    while((repertoire_entree=readdir(repertoire))!=NULL){
+        fichiers_count++;
+         if(fichiers_count > 2){
+            strcpy(nom_fichier, repertoire_entree->d_name);
+            printf("(%d): %s\n",fichiers_count-2, nom_fichier);
+            bzero(nom_fichier, 256);
+        }
+    }
+    closedir(repertoire);
+    nbFichiers_local=fichiers_count-2;
+    couleur_reset();
+}
 
 void prompt(int socket){
     int cmd;
     int stat;
     do
     {
-        cmd = saisieEntier("\n1. Liste des fichiers\n2. Envoyer un fichier\n0. Quitter\n\nCommande: (entrez un entier) ");
+        cmd = saisieEntier("\n1. Liste des fichiers (télécharger)\n2. Liste des fichiers locaux (envoyer et afficher)\n0. Quitter\n\nCommande: (entrez un entier) ");
         // printf("cmd: %d\n", cmd);
         if(cmd>0 && cmd<=2){
-            do{
-                stat=write(socket, &cmd,sizeof(int));
-            }while(stat<0);
-            // if (==-1){
-            //     perror("[+] erreur envoie commande");
-            // }
-            //attend reponse
+
             switch (cmd)
             {
             case CMD_LIST:
-                // printf("Debug:prompt() CMD_LIST \n");
-                /* attend et affiche liste  */
+                do{
+                    stat=write(socket, &cmd,sizeof(int)); //envoie la commande au serveru
+                }while(stat<0);
+                //list et recuperation
                 list(socket);
                 promptList(socket);
                 break;
-            case CMD_PUSH:
-                //envoie fichier
-                push();
-                cmd=0; //temporaire
+            case CMD_LIST_LOCAL:
+                //liste local envoie et display
+                listLocal();
+                promptListLocal(socket);
+                // cmd=0; //temporaire
                 break;
             default:
                 // printf("Debug default\n");
@@ -326,19 +412,3 @@ int main(int argc, char *argv[]){
 }
 
 
-    // char buffer[256];
-    // char reponse[256];
-
-    // int cmd;
-    // while(1){
-    //     bzero(buffer, 256);
-    //     // printf("Message a ecrire:");
-    //     // scanf("%s", buffer);
-    //     // printf("\n");
-    //     // write(socket_client, buffer,strlen(buffer));
-    //     // bzero(buffer, 256);
-    //     // if(read(socket_client, buffer, 256 * sizeof(char))==-1){
-    //     //     perror("[-] Erreur lecture");
-    //     // }
-    //     // printf("message reçu: %s\n", buffer);
-    // }
