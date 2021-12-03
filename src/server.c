@@ -21,15 +21,14 @@
 
 #define TRUE 1
 #define FALSE 0
-//taille fichier
-// int nombre_fichiers;
 
+#include "../include/server.h"
 
 
 void list(int socket){
+    //envoie la liste des fichier un par un
     int stat;
     printf("[+]Envoie Liste fichiers\n");
-    // printf("Debug: list()\n");
     char nom_fichier[256];
     
     DIR *repertoire;
@@ -56,24 +55,17 @@ void list(int socket){
     char end_liste[]="fin_liste";
     do{
         stat=write(socket, end_liste, sizeof(end_liste));
-        //stat=write(socket, "\0", 256); //dit au client qu'il a fini d'envoyer les fichiers // changer buffer
     }while(stat<0);
 
     closedir(repertoire);
 
-    // nombre_fichiers=fichiers_count;
-    //envoie des fichiers
 }
 
-void checkSum(FILE *fichier){
-    // char magic[]="P3\n"
-    
-}
+
 
 
 
 void checkMime(char *filename, int socket){ //a appeler après reception de fichier
-// string string string sscanf('%s %s %s', NULL, buffer, NULL);
      int authorized=FALSE; //boolean pour l'authorisation du fichier
      int fd[2];
      char *exec_arg[]={"file","-i", filename, NULL};
@@ -133,7 +125,6 @@ void checkMime(char *filename, int socket){ //a appeler après reception de fich
 
             if(authorized==TRUE){
                 printf("Autorisé\n");
-                // sscanf(line_buffer,"Fichier (type %s)autorisé et déposé dans files/\n",type);
                 strcpy(line_buffer,"Fichier autorisé et déposé dans files/ (type:");
                 strcat(line_buffer,type);
                 strcat(line_buffer,")\n");
@@ -148,8 +139,9 @@ void checkMime(char *filename, int socket){ //a appeler après reception de fich
                 
             }
 
+            
             do{
-                write(socket, line_buffer, 256); //informe le client de l'autoriasation du fichier
+                stat=write(socket, line_buffer, 256); //informe le client de l'autoriasation du fichier
             }while(stat<0);
 
             
@@ -171,7 +163,6 @@ void sendFile(char* nom_fichier, int socket){ //n'arrive pas a telecharger plusi
     sprintf(path, "%s/%s",dir, nom_fichier); //concatene repertoire au nom du fichier
 
     FILE *fichier = fopen(path, "rb"); //on ouvre le fichier en mode binaire  
-    // FILE *fichier = fopen(path, "r"); //on ouvre le fichier en mode binaire  
     
     if (fichier == NULL) {
         perror("[-]Erreur ouverture fichier.\n");
@@ -205,7 +196,6 @@ void sendFile(char* nom_fichier, int socket){ //n'arrive pas a telecharger plusi
     taille = ftell(fichier);
     fseek(fichier, 0, SEEK_SET);
     printf("Taille: %i\n",taille);
-    //Send Picture Size
     printf("envoie taille\n");
     
     do{
@@ -222,12 +212,10 @@ void sendFile(char* nom_fichier, int socket){ //n'arrive pas a telecharger plusi
     }
 
 
-    // int nb = fread(send_buffer, 1, sizeof(send_buffer), fichier);
     int nb;
     while (!feof(fichier))
     {
         nb = fread(send_buffer, 1, sizeof(send_buffer), fichier);
-        //printf("[+]Telechargement... %d octets\n", nb);
         do{
             stat=write(socket, send_buffer, nb);
         }while(stat<0);
@@ -239,9 +227,6 @@ void sendFile(char* nom_fichier, int socket){ //n'arrive pas a telecharger plusi
         stat=read(socket, send_buffer, sizeof(send_buffer));
     }while(stat<0);
 
-    // nb=write(socket, "fin_fichier", strlen("fin_fichier")); //on indique au client la fin de l'envoie
-     //on indique au client la fin de l'envoie
-    // printf("Send stop nb: %d octets\n", nb);
     fclose(fichier);    
 
 }
@@ -249,9 +234,7 @@ void sendFile(char* nom_fichier, int socket){ //n'arrive pas a telecharger plusi
 
 
 void getFileNames(int socket, char* index_array, int size){ //size= taille du tableau d'index
-    //prendre en compte les index a deux chiffres
-
-    int index; //index de fichier reçu
+    //recois indices de fichier a envoyer, extrait les indices et appelle la fonction d'envoie
     int *index_list; // tableau des index a envoyer
     int compteur_fichier=0; //nombre de fichier a envoyer
 
@@ -272,7 +255,6 @@ void getFileNames(int socket, char* index_array, int size){ //size= taille du ta
     
 
     index_list=malloc(compteur_fichier*sizeof(int)); //on alloue la taille de la liste d'indice
-    int stat;
     char tmp[2];
     int cpt=0; //
     int double_digit=FALSE;
@@ -308,11 +290,9 @@ void getFileNames(int socket, char* index_array, int size){ //size= taille du ta
     printf("Fichiers a envoyer: \n");
     
     while((repertoire_entree=readdir(repertoire))!=NULL){
-    int file_exists=FALSE;
         if(i>=1){ //on ne prend pas en compte ./ et ../
             for(int j = 0; j<compteur_fichier; j++){ //on parcours la liste d'indice pour voir le fichier correspondant 
                 if(i==index_list[j]){
-                  file_exists=TRUE;
                   printf("fichier: %s\n", repertoire_entree->d_name);
                   sendFile(repertoire_entree->d_name, socket);
                 }
@@ -323,11 +303,10 @@ void getFileNames(int socket, char* index_array, int size){ //size= taille du ta
     closedir(repertoire);
     printf("[+] Fin telechargement\n");
     
-    //free(index_list)
 }
 
 void getIndex(int socket){
-    // printf("getIndex()\n");
+    // ecoute la commande du client (au menu2)
     int n;
     int cmd;
     char index_array[20]="";
@@ -335,16 +314,13 @@ void getIndex(int socket){
     do{
         stat=read(socket, &cmd, sizeof(int)); //verifie que l'utilisateur veux recuperer des fichiers
     }while(stat<0);
-    // printf("Commande2: %d\n", cmd);
     if(cmd==CMD_FETCH){
-        // printf("cmd_fetch\n");
         do{
-             n=read(socket, index_array, 20); //lis le write de client.fetch()
+             n=read(socket, index_array, 20); //recupere chaine de caractère contenant des indices
         }while(n<0);
         index_array[n]='\n';
-        //printf("n: %d\n",n);
-        // printf("fichiers a telecharger : %s\n n=%d \n", index_array,n);
-        getFileNames(socket, index_array, n);
+  
+        getFileNames(socket, index_array, n); //
     }
     else{
 
@@ -358,7 +334,6 @@ void receiveFile(int socket){
     int stat;
     int n;
 
-    //print
     do{
         n=read(socket, nom_fichier, 256); //recois  le nom du fichier a recevoir
     }while(n<0);
@@ -384,7 +359,6 @@ void receiveFile(int socket){
     do{
         stat = read(socket, &taille, sizeof(int));
     }while(stat<0);
-    // printf("Taille attendu %d: (oct\n", taille);
 
     do{
         stat=write(socket, "taille_ok", strlen("taille_ok")); // pour empecher le serveur d'envoyer autre chose que le nom
@@ -394,7 +368,6 @@ void receiveFile(int socket){
 
     char buffer[256];
  
-    int end=FALSE;
     int nbWrite;
     int nb=0;
     int rcv_taille=0;
@@ -413,7 +386,6 @@ void receiveFile(int socket){
     } while (stat<0);
     
     fclose(fichier);
-    // printf("[+] Transfert complet: %d octets reçus\n",downloaded);
     printf("[+] Transfert %s complet (%d octets)\n",nom_fichier, rcv_taille);
 
     checkMime(path, socket);
@@ -440,13 +412,11 @@ void getClientFiles(int socket){
 }
 
 void service2(int socket){
-    // printf("Debug: Service2()\n");
-    char buffer[BUFFER_SIZE];
+    //ecoute la commande du client
     int cmd;
     int stat;
     do{
         printf("[...] En attente d'une commande\n");
-        // printf("cmd avant %d\n", cmd);
         cmd=0; //si le client se deconnecte ou met la commande a 0
         do{
             stat=read(socket, &cmd, sizeof(int)); //lis la commande
@@ -455,14 +425,12 @@ void service2(int socket){
         {
         case CMD_LIST:
             /* code pour lister  */
-            // printf("Debug:service2() CMD_LIST \n");
             list(socket);
             getIndex(socket);
             break;
         case CMD_PUSH: //client qui push un fichier
             getClientFiles(socket);
-                //reçois liste
-                //lis un fichier
+
         default:
             break;
        }
