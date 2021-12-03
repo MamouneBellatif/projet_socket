@@ -313,6 +313,7 @@ void getFileNames(int socket, char* index_array, int size){ //size= taille du ta
     char tmp[2];
     int cpt=0; //
     int double_digit=FALSE;
+    printf("nb iteration %d", size);
     for (int i = 0; i < size; i++) //on erempli le tableau d'index
     {
         if(index_array[i]!=' '){ //on prend en compte les nombres a deux chiffres
@@ -320,6 +321,7 @@ void getFileNames(int socket, char* index_array, int size){ //size= taille du ta
                 tmp[0]=index_array[i]; //on ajoute ces deux caractère dans un tempon
                 tmp[1]=index_array[i+1];
                 index_list[cpt]=atoi(tmp); //on les convertit en entier
+                printf("Ajoute %d\n",index_list[cpt]);
                 double_digit=TRUE; //on met le boolean a vrai pour ne pas compter deux fois a cause du deuxieme chiffre
                 cpt++;
             }
@@ -377,6 +379,7 @@ void getIndex(int socket){
              n=read(socket, index_array, 20); //lis le write de client.fetch()
         }while(n<0);
         index_array[n]='\n';
+        //printf("n: %d\n",n);
         // printf("fichiers a telecharger : %s\n n=%d \n", index_array,n);
         getFileNames(socket, index_array, n);
     }
@@ -396,7 +399,7 @@ void receiveFile(int socket){
     do{
         n=read(socket, nom_fichier, 256); //recois  le nom du fichier a recevoir
     }while(n<0);
-    nom_fichier[n]='\0';
+    nom_fichier[n]='\0'; //fin de chaine de caractère pour le nom de fichier
     //envoyer ok
 
     do{

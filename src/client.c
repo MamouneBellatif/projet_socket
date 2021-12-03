@@ -164,9 +164,7 @@ void receiveFile(int socket){
     do{
         n=read(socket, nom_fichier, 256); //recois  le nom du fichier reçu
     }while(n<0);
-    printf("nom_fichier: avant 0: %s", nom_fichier);
     nom_fichier[n]='\0';
-    printf("nom_fichier: après 0: %s", nom_fichier);
     //envoyer ok
 
     do{
@@ -415,18 +413,29 @@ void push(int socket){
     char tmp[2];
     int cpt=0; //
     int double_digit=FALSE;
+
+   // for(int i=0; i<strlen(index_array); i++){
+     //   printf("index_array[i]%c\n", index_array[i]);
+   // }
+
     for (int i = 0; i < strlen(index_array); i++) //on erempli le tableau d'index
-    {
+    {   
+
+        printf("parse i%d=%c\n", i, index_array[i]);
         if(index_array[i]!=' '){ //on prend en compte les nombres a deux chiffres
             if( ((i+1) < strlen(index_array)) && index_array[i+1]!=' '){ //si caractère non nulet caracère suivant non nul
                 tmp[0]=index_array[i]; //on ajoute ces deux caractère dans un tempon
                 tmp[1]=index_array[i+1];
+                tmp[strlen(tmp)-2] = '\0'; // corrie bug nombre dupliqué
+                printf("tmp %s length tmp %ld\n", tmp, strlen(tmp));
                 index_list[cpt]=atoi(tmp); //on les convertit en entier
                 double_digit=TRUE; //on met le boolean a vrai pour ne pas compter deux fois a cause du deuxieme chiffre
                 cpt++;
+                
             }
             else if(double_digit==FALSE){
                 index_list[cpt]=atoi(&index_array[i]);
+                printf("Ajoute %d\n", index_list[cpt]);
                 cpt++;
             }
             
@@ -436,8 +445,9 @@ void push(int socket){
         }
     }
 
+    
     for(int i=0; i<nbFichiers; i++){
-        printf("index_array[i]%d\n", index_list[i]);
+        printf("index_list[i]%d\n", index_list[i]);
     }
 
     //boucle sur le reperoire et envoie les fichiers dont l'indice correspond
