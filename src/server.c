@@ -24,42 +24,7 @@
 //taille fichier
 // int nombre_fichiers;
 
-//./client im2ag-mandelbrot.univ-grenoble-alpes.fr 1332
 
-void list2(int socket){
-    int stat;
-    printf("[+]Envoie Liste fichiers\n");
-    // printf("Debug: list()\n");
-    char nom_fichier[256];
-    
-    DIR *repertoire;
-    struct dirent *repertoire_entree;
-    repertoire=opendir("../files");
-
-    //compteur
-    int fichiers_count=0; //pour ne pas compter . et ..
-    while((repertoire_entree=readdir(repertoire))!=NULL){
-        fichiers_count++;
-         if(fichiers_count > 2){
-            // printf("Debug: envoie nom fichier %d\n", fichiers_count-2);
-            strcpy(nom_fichier, repertoire_entree->d_name);
-            do{
-                stat=write(socket, nom_fichier, 256);
-            }while(stat<0);
-            bzero(nom_fichier, 256);
-        }
-    }
-    char end_liste[]="fin_liste";
-    do{
-        stat=write(socket, end_liste, sizeof(end_liste));
-        //stat=write(socket, "\0", 256); //dit au client qu'il a fini d'envoyer les fichiers // changer buffer
-    }while(stat<0);
-
-    closedir(repertoire);
-
-    // nombre_fichiers=fichiers_count;
-    //envoie des fichiers
-}
 
 void list(int socket){
     int stat;
@@ -253,7 +218,7 @@ void sendFile(char* nom_fichier, int socket){ //n'arrive pas a telecharger plusi
     }while(stat<0);
 
     if (strncmp(buffer_ok, "taille_ok", strlen("taille_ok"))==0){ 
-        printf("[+]Debut telechargement (ok taille)\n");
+        printf("[+]Debut telechargement \n");
     }
 
 
@@ -262,7 +227,7 @@ void sendFile(char* nom_fichier, int socket){ //n'arrive pas a telecharger plusi
     while (!feof(fichier))
     {
         nb = fread(send_buffer, 1, sizeof(send_buffer), fichier);
-        printf("[+]Telechargement... %d octets\n", nb);
+        //printf("[+]Telechargement... %d octets\n", nb);
         do{
             stat=write(socket, send_buffer, nb);
         }while(stat<0);

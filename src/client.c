@@ -116,43 +116,6 @@ void list(int socket){
     printf("fichier total: %d \n", nbFichiers_total);
 }
 
-void list2(int socket){ 
-    // printf("Debug: list()\n");
-    //rajouter gestion erreurs
-    //lit le nombre de fichiers
-    int fichier_count;
-    char nom_fichier[256];    
-    int n=0; //nb caracteres lus
-    int index=0;
-    int end=FALSE;
-    printf("\n");
-
-    couleur_rouge();
-    //while( end==FALSE && ((n = read( socket, nom_fichier, 256))>1)){ //lis les noms de fichiers un a un
-    while( end==FALSE && (n = read( socket, nom_fichier, 256))>1){ //lis les noms de fichiers un a un
-            //do{
-             //   n=read(socket,nom_fichier, 256);
-           // }while(n<0);
-            if(strncmp(nom_fichier, "fin_liste", 9)==0){
-                printf("end list\n");
-                end=TRUE; //fin des fichiers
-            }
-            else{
-                index++;
-                nom_fichier[n] = '\0';
-                printf("\t(%d): %s \n", index, nom_fichier);
-                bzero(nom_fichier, 256);
-            }
-            
-    }
-    //do{
-    //    stat=write()
-   // }while(stat<0);
-
-    couleur_reset();
-    nbFichiers_total=index;
-    printf("fichier total: %d \n", nbFichiers_total);
-}
 //flush
 void receiveFile(int socket){
     char *dir="../files_client";
@@ -318,12 +281,12 @@ void sendFile(char *nom_fichier, int socket){
         // printf("[+]Ouverture fichier %s\n", path);
     }
 
-     printf("writing name \n");
+     printf("envoie nom \n");
     do{
         stat=write(socket, nom_fichier, 256); //Envoie le chemin et nom du fichier //receive file
     }while(stat<0);
 
-     printf("reading name ok\n");
+     printf("name ok\n");
     do{
         stat=read(socket, buffer_ok, 256); //attend ok du client pour commencer a telecharger le fichier
     }while(stat<0);
@@ -343,7 +306,7 @@ void sendFile(char *nom_fichier, int socket){
  
     printf("Taille: %i\n",taille);
     //Send Picture Size
-    printf("writing size\n");
+    printf("envoie taille\n");
     
     do{
         stat=write(socket, (void *)&taille, sizeof(int));
@@ -381,11 +344,13 @@ void sendFile(char *nom_fichier, int socket){
     // printf("Send stop nb: %d octets\n", nb);
     fclose(fichier);    
 
-    do{ //lis le mime
+    do{ //lis le mime (type)
         stat=read(socket,send_buffer,256);
     }while(stat<0);
 
+    couleur_rouge();
     printf("[+] %s\n", send_buffer);
+    couleur_reset();
 }
 
 void push(int socket){
@@ -414,20 +379,15 @@ void push(int socket){
     int cpt=0; //
     int double_digit=FALSE;
 
-   // for(int i=0; i<strlen(index_array); i++){
-     //   printf("index_array[i]%c\n", index_array[i]);
-   // }
-
-    for (int i = 0; i < strlen(index_array); i++) //on erempli le tableau d'index
+    int size = strlen(index_array);
+    for (int i = 0; i < size; i++) //on erempli le tableau d'index
     {   
 
-        printf("parse i%d=%c\n", i, index_array[i]);
         if(index_array[i]!=' '){ //on prend en compte les nombres a deux chiffres
-            if( ((i+1) < strlen(index_array)) && index_array[i+1]!=' '){ //si caractère non nulet caracère suivant non nul
+            if( ((i+1) < size) && index_array[i+1]!=' '){ //si caractère non nulet caracère suivant non nul
                 tmp[0]=index_array[i]; //on ajoute ces deux caractère dans un tempon
                 tmp[1]=index_array[i+1];
-                tmp[strlen(tmp)-2] = '\0'; // corrie bug nombre dupliqué
-                printf("tmp %s length tmp %ld\n", tmp, strlen(tmp));
+                tmp[2]='\0';
                 index_list[cpt]=atoi(tmp); //on les convertit en entier
                 double_digit=TRUE; //on met le boolean a vrai pour ne pas compter deux fois a cause du deuxieme chiffre
                 cpt++;
@@ -435,7 +395,6 @@ void push(int socket){
             }
             else if(double_digit==FALSE){
                 index_list[cpt]=atoi(&index_array[i]);
-                printf("Ajoute %d\n", index_list[cpt]);
                 cpt++;
             }
             
@@ -445,10 +404,7 @@ void push(int socket){
         }
     }
 
-    
-    for(int i=0; i<nbFichiers; i++){
-        printf("index_list[i]%d\n", index_list[i]);
-    }
+   
 
     //boucle sur le reperoire et envoie les fichiers dont l'indice correspond
     DIR *repertoire;
@@ -457,7 +413,7 @@ void push(int socket){
     
     int i=-1; //iterateur
 
-    printf("nb fichiers %d \n", nbFichiers);
+    printf("nombre de fichiers %d \n", nbFichiers);
     printf("Fichiers a envoyer: \n");
 
     do{//envoie du nmbre de fichier a envoyer
@@ -476,7 +432,9 @@ void push(int socket){
             for(int j = 0; j<nbFichiers; j++){ //on parcours la liste d'indice pour voir le fichier correspondant 
                 if(i==index_list[j]){
                   file_exists=TRUE;
+                  couleur_rouge();
                   printf("fichier: %s\n", repertoire_entree->d_name);
+                  couleur_reset();
                   sendFile(repertoire_entree->d_name, socket);
                 }
             }
