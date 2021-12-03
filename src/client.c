@@ -302,7 +302,7 @@ void promptList(int socket){
 
 void sendFile(char *nom_fichier, int socket){
     char *dir="../files_client";
-    char path[256];
+    char path[500];
     int stat;
     int taille;
     char buffer_ok[256];
@@ -320,12 +320,12 @@ void sendFile(char *nom_fichier, int socket){
         // printf("[+]Ouverture fichier %s\n", path);
     }
 
-    // printf("writing name \n");
+     printf("writing name \n");
     do{
-        stat=write(socket, nom_fichier, strlen(nom_fichier)); //Envoie le chemin et nom du fichier
+        stat=write(socket, nom_fichier, 256); //Envoie le chemin et nom du fichier //receive file
     }while(stat<0);
 
-    // printf("reading name ok\n");
+     printf("reading name ok\n");
     do{
         stat=read(socket, buffer_ok, 256); //attend ok du client pour commencer a telecharger le fichier
     }while(stat<0);
@@ -343,7 +343,10 @@ void sendFile(char *nom_fichier, int socket){
     taille = ftell(fichier);
     fseek(fichier, 0, SEEK_SET);
  
-
+    printf("Taille: %i\n",taille);
+    //Send Picture Size
+    printf("writing size\n");
+    
     do{
         stat=write(socket, (void *)&taille, sizeof(int));
     }while (stat<0);
@@ -380,7 +383,7 @@ void sendFile(char *nom_fichier, int socket){
     // printf("Send stop nb: %d octets\n", nb);
     fclose(fichier);    
 
-    do{
+    do{ //lis le mime
         stat=read(socket,send_buffer,256);
     }while(stat<0);
 
@@ -403,15 +406,7 @@ void push(int socket){
         }
     }while(nbFichiers==-1);
 
-    printf("nb fichiers %d \n", nbFichiers);
-    do{//envoie du nmbre de fichier a envoyer
-        stat=write(socket, &nbFichiers, sizeof(int));
-    }while(stat<0);
-
-    char buffer_ok[100]; 
-    do{
-        stat=read(socket,buffer_ok,100);
-    }while(stat<0);
+   
 
 
     index_list=malloc(nbFichiers*sizeof(int));
@@ -441,17 +436,33 @@ void push(int socket){
         }
     }
 
+    for(int i=0; i<nbFichiers; i++){
+        printf("index_array[i]%d\n", index_list[i]);
+    }
+
     //boucle sur le reperoire et envoie les fichiers dont l'indice correspond
     DIR *repertoire;
     struct dirent *repertoire_entree;
     repertoire=opendir("../files_client");
     
-    int i=-1;
+    int i=-1; //iterateur
+
+    printf("nb fichiers %d \n", nbFichiers);
     printf("Fichiers a envoyer: \n");
+
+    do{//envoie du nmbre de fichier a envoyer
+        stat=write(socket, &nbFichiers, sizeof(int));
+    }while(stat<0);
+
+    char buffer_ok[100]; 
+    do{
+        stat=read(socket,buffer_ok,100);
+    }while(stat<0);
     
     while((repertoire_entree=readdir(repertoire))!=NULL){
     int file_exists=FALSE;
         if(i>=1){ //on ne prend pas en compte ./ et ../
+
             for(int j = 0; j<nbFichiers; j++){ //on parcours la liste d'indice pour voir le fichier correspondant 
                 if(i==index_list[j]){
                   file_exists=TRUE;

@@ -392,6 +392,7 @@ void receiveFile(int socket){
     int stat;
     int n;
 
+    //print
     do{
         n=read(socket, nom_fichier, 256); //recois  le nom du fichier a recevoir
     }while(n<0);
@@ -434,7 +435,7 @@ void receiveFile(int socket){
 
     while (rcv_taille <taille) {
         do{
-            nb = read(socket, buffer, sizeof(buffer));
+            nb = read(socket, buffer, 256);
         }while(nb<0);
         nbWrite=fwrite(buffer, 1, nb, fichier);
         rcv_taille += nb;
@@ -461,10 +462,12 @@ void getClientFiles(int socket){
         stat=read(socket,&nbFichiers, sizeof(int));//lis le nombre de fichier a recevir
     }while(stat<0);
     printf("Nb fichiers %d\n", nbFichiers);
+
     do{
-        stat=write(socket, "nbfiles_ok", 256);
+        stat=write(socket, "nbfiles_ok", 10);
     }while(stat<0);
 
+    printf("debut boucle envoie\n");
     for(int i = 0; i < nbFichiers; i++){
         receiveFile(socket);
     }
