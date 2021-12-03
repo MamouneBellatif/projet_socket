@@ -1,29 +1,30 @@
-#ifndef CLIENT_H
-#define CLIENT_H
-  
+#ifndef SERVER_H
+#define SERVER_H
 
-void couleur_rouge();
+void service(int* socket);
 
-void couleur_reset ();
-
-int saisieEntier(char* message);
-
-void saisieListe(char *message, char* liste);
-
-void sendFile(char* nom_fichier, int socket);
+void handler(int signal);
 
 void list(int socket);
 
-void receiveFile(int socket);//
+void checkMime(char *filename, int socket);
 
-int fileCount(char* index_array, int total);
+void sendFile(char* nom_fichier, int socket);
 
-void fetch(int socket);
+void getFileNames(int socket, char* index_array, int size);
 
-void prompt(int socket);
+void checkIndex();
+
+void fileExists();
+
+void getIndex(int socket);
+
+void push();
+
+void service2(int socket);
+
 
 int main(int argc, char **argv);
 
 
-
-#endif
+#endif // !SERVER_H
