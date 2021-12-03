@@ -1,5 +1,5 @@
-#define _CLIENT_H
-#ifndef _CLIENT_H
+#ifndef CLIENT_H
+#define CLIENT_H
   
 
 void couleur_rouge();
@@ -10,13 +10,13 @@ int saisieEntier(char* message);
 
 void saisieListe(char *message, char* liste);
 
-sendFile(char* nom_fichier, int socket);
+void sendFile(char* nom_fichier, int socket);
 
 void list(int socket);
 
-void receiveFile(int socket);
+void receiveFile(int socket);//
 
-int fileCount(char* index_array);
+int fileCount(char* index_array, int total);
 
 void fetch(int socket);
 
