@@ -26,7 +26,7 @@
 
 //./client im2ag-mandelbrot.univ-grenoble-alpes.fr 1332
 
-void list(int socket){
+void list2(int socket){
     int stat;
     printf("[+]Envoie Liste fichiers\n");
     // printf("Debug: list()\n");
@@ -49,9 +49,49 @@ void list(int socket){
             bzero(nom_fichier, 256);
         }
     }
+    char end_liste[]="fin_liste";
     do{
-        //stat=write(socket, "fin_liste", strlen("fin_liste"));
-        stat=write(socket, "\0", 256); //dit au client qu'il a fini d'envoyer les fichiers // changer buffer
+        stat=write(socket, end_liste, sizeof(end_liste));
+        //stat=write(socket, "\0", 256); //dit au client qu'il a fini d'envoyer les fichiers // changer buffer
+    }while(stat<0);
+
+    closedir(repertoire);
+
+    // nombre_fichiers=fichiers_count;
+    //envoie des fichiers
+}
+
+void list(int socket){
+    int stat;
+    printf("[+]Envoie Liste fichiers\n");
+    // printf("Debug: list()\n");
+    char nom_fichier[256];
+    
+    DIR *repertoire;
+    struct dirent *repertoire_entree;
+    repertoire=opendir("../files");
+
+    //compteur
+    int fichiers_count=0; //pour ne pas compter . et ..
+    while((repertoire_entree=readdir(repertoire))!=NULL){
+        fichiers_count++;
+         if(fichiers_count > 2){
+            // printf("Debug: envoie nom fichier %d\n", fichiers_count-2);
+            strcpy(nom_fichier, repertoire_entree->d_name);
+            do{
+                stat=write(socket, nom_fichier, 256);
+            }while(stat<0);
+            
+            do{
+                stat=read(socket, nom_fichier, 256);
+            }while(stat<0);
+            bzero(nom_fichier, 256);
+        }
+    }
+    char end_liste[]="fin_liste";
+    do{
+        stat=write(socket, end_liste, sizeof(end_liste));
+        //stat=write(socket, "\0", 256); //dit au client qu'il a fini d'envoyer les fichiers // changer buffer
     }while(stat<0);
 
     closedir(repertoire);
@@ -177,8 +217,9 @@ void sendFile(char* nom_fichier, int socket){ //n'arrive pas a telecharger plusi
     }
 
     printf("writing name \n");
+    printf("nom_fichier: %s\n", nom_fichier);
     do{
-        stat=write(socket, nom_fichier, strlen(nom_fichier)); //Envoie le chemin et nom du fichier
+        stat=write(socket, nom_fichier, 256); //Envoie le chemin et nom du fichier
     }while(stat<0);
 
     printf("reading name ok\n");
@@ -201,6 +242,7 @@ void sendFile(char* nom_fichier, int socket){ //n'arrive pas a telecharger plusi
     printf("Taille: %i\n",taille);
     //Send Picture Size
     printf("writing size\n");
+    
     do{
         stat=write(socket, (void *)&taille, sizeof(int));
     }while (stat<0);

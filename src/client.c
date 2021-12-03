@@ -83,14 +83,58 @@ void list(int socket){
     int index=0;
     int end=FALSE;
     printf("\n");
+    int stat;
+
 
     couleur_rouge();
     //while( end==FALSE && ((n = read( socket, nom_fichier, 256))>1)){ //lis les noms de fichiers un a un
-    while( end==FALSE && (n = read( socket, nom_fichier, 256))){ //lis les noms de fichiers un a un
+    while( end==FALSE && (n = read( socket, nom_fichier, 256))>1){ //lis les noms de fichiers un a un
             //do{
              //   n=read(socket,nom_fichier, 256);
            // }while(n<0);
-            if(strcmp(nom_fichier, "\0")==0){
+            if(strncmp(nom_fichier, "fin_liste", 9)==0){
+                printf("end list\n");
+                end=TRUE; //fin des fichiers
+            }
+            else{
+                do{
+                    stat=write(socket, "recu", 5);
+                }while(stat<0);
+                index++;
+                //nom_fichier[n] = '\0';
+                printf("\t(%d): %s \n", index, nom_fichier);
+                bzero(nom_fichier, 256);
+            }
+            
+    }
+    //do{
+    //    stat=write()
+   // }while(stat<0);
+
+    couleur_reset();
+    nbFichiers_total=index;
+    printf("fichier total: %d \n", nbFichiers_total);
+}
+
+void list2(int socket){ 
+    // printf("Debug: list()\n");
+    //rajouter gestion erreurs
+    //lit le nombre de fichiers
+    int fichier_count;
+    char nom_fichier[256];    
+    int n=0; //nb caracteres lus
+    int index=0;
+    int end=FALSE;
+    printf("\n");
+
+    couleur_rouge();
+    //while( end==FALSE && ((n = read( socket, nom_fichier, 256))>1)){ //lis les noms de fichiers un a un
+    while( end==FALSE && (n = read( socket, nom_fichier, 256))>1){ //lis les noms de fichiers un a un
+            //do{
+             //   n=read(socket,nom_fichier, 256);
+           // }while(n<0);
+            if(strncmp(nom_fichier, "fin_liste", 9)==0){
+                printf("end list\n");
                 end=TRUE; //fin des fichiers
             }
             else{
@@ -101,6 +145,10 @@ void list(int socket){
             }
             
     }
+    //do{
+    //    stat=write()
+   // }while(stat<0);
+
     couleur_reset();
     nbFichiers_total=index;
     printf("fichier total: %d \n", nbFichiers_total);
@@ -116,7 +164,9 @@ void receiveFile(int socket){
     do{
         n=read(socket, nom_fichier, 256); //recois  le nom du fichier reçu
     }while(n<0);
+    printf("nom_fichier: avant 0: %s", nom_fichier);
     nom_fichier[n]='\0';
+    printf("nom_fichier: après 0: %s", nom_fichier);
     //envoyer ok
 
     do{
@@ -353,6 +403,7 @@ void push(int socket){
         }
     }while(nbFichiers==-1);
 
+    printf("nb fichiers %d \n", nbFichiers);
     do{//envoie du nmbre de fichier a envoyer
         stat=write(socket, &nbFichiers, sizeof(int));
     }while(stat<0);
