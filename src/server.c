@@ -92,7 +92,7 @@ void checkMime(char *filename, int socket){ //a appeler après reception de fich
             close(fd[1]);
             execvp("file",exec_arg);
             exit(0);
-            break;
+            
          default:;
             char buffer[256];
             close(fd[1]);
@@ -181,13 +181,13 @@ void sendFile(char* nom_fichier, int socket){ //n'arrive pas a telecharger plusi
         printf("[+]Ouverture fichier %s\n", path);
     }
 
-    printf("writing name \n");
+    printf("Envoie nom \n");
     printf("nom_fichier: %s\n", nom_fichier);
     do{
         stat=write(socket, nom_fichier, 256); //Envoie le chemin et nom du fichier
     }while(stat<0);
 
-    printf("reading name ok\n");
+    printf("nom ok\n");
     do{
         stat=read(socket, buffer_ok, 256); //attend ok du client pour commencer a telecharger le fichier
     }while(stat<0);
@@ -206,13 +206,13 @@ void sendFile(char* nom_fichier, int socket){ //n'arrive pas a telecharger plusi
     fseek(fichier, 0, SEEK_SET);
     printf("Taille: %i\n",taille);
     //Send Picture Size
-    printf("writing size\n");
+    printf("envoie taille\n");
     
     do{
         stat=write(socket, (void *)&taille, sizeof(int));
     }while (stat<0);
     
-    printf("reading size_ok\n");
+    printf("taille ok\n");
     do{
         stat=read(socket, buffer_ok, 256); //attend ok du client pour commencer a telecharger le fichier
     }while(stat<0);
@@ -268,9 +268,7 @@ void getFileNames(int socket, char* index_array, int size){ //size= taille du ta
         }
     }
 
-    // do{
-    //     stat=write(socket, &compteur_fichier, sizeof(int));
-    // }while(stat<0);
+
     
 
     index_list=malloc(compteur_fichier*sizeof(int)); //on alloue la taille de la liste d'indice

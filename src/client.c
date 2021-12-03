@@ -93,7 +93,7 @@ void list(int socket){
              //   n=read(socket,nom_fichier, 256);
            // }while(n<0);
             if(strncmp(nom_fichier, "fin_liste", 9)==0){
-                printf("end list\n");
+                printf("fin de liste\n");
                 end=TRUE; //fin des fichiers
             }
             else{
