@@ -7,7 +7,7 @@ void handler(int signal);
 
 void list(int socket);
 
-void checkMime(char *filename);
+void checkMime(char *filename, int socket);
 
 void sendFile(char* nom_fichier, int socket);
 
