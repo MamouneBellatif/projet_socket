@@ -460,9 +460,9 @@ void getClientFiles(int socket){
     do{
         stat=read(socket,&nbFichiers, sizeof(int));//lis le nombre de fichier a recevir
     }while(stat<0);
-
+    printf("Nb fichiers %d\n", nbFichiers);
     do{
-        stat=write(socket, "nbfiles_ok", strlen("nbfiles_ok"));
+        stat=write(socket, "nbfiles_ok", 256);
     }while(stat<0);
 
     for(int i = 0; i < nbFichiers; i++){
