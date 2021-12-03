@@ -12,6 +12,8 @@
 #include <netdb.h>
 #include <string.h>
 #include <dirent.h>
+#include "../include/client.h"
+
 
 #define h_addr h_addr_list[0] //pour vscode, enlever
 
@@ -30,7 +32,6 @@
 int nbFichiers_total;
 int nbFichiers_local;
 
-//./client im2ag-mandelbrot.univ-grenoble-alpes.fr 1332
 
 
 void couleur_rouge() { //coloration du texte en rouge
@@ -40,7 +41,6 @@ void couleur_reset () { //coloration du texte en blanc
     printf("\033[0m");
 }
 
-// char (*liste_fichiers)[50];
 int saisieEntier(char* message){ //fonction de saisie entier avec verification et nettoyage de stdin
     int cmd;
     printf("%s :", message);
@@ -57,7 +57,7 @@ int saisieEntier(char* message){ //fonction de saisie entier avec verification e
     return cmd;
 }
 
-void saisieListe(char *message, char* liste){
+void saisieListe(char *message, char* liste){//saisie les liste d'indice
     //saisie des index avex un espace entre eux
      int chr;
         do
@@ -74,50 +74,39 @@ void saisieListe(char *message, char* liste){
 }
 
 void list(int socket){ 
-    // printf("Debug: list()\n");
-    //rajouter gestion erreurs
-    //lit le nombre de fichiers
-    int fichier_count;
+
     char nom_fichier[256];    
     int n=0; //nb caracteres lus
     int index=0;
     int end=FALSE;
     printf("\n");
-    int stat;
+    int stat; //retrour de read et write
 
 
     couleur_rouge();
-    //while( end==FALSE && ((n = read( socket, nom_fichier, 256))>1)){ //lis les noms de fichiers un a un
     while( end==FALSE && (n = read( socket, nom_fichier, 256))>1){ //lis les noms de fichiers un a un
-            //do{
-             //   n=read(socket,nom_fichier, 256);
-           // }while(n<0);
+  
             if(strncmp(nom_fichier, "fin_liste", 9)==0){
                 printf("fin de liste\n");
                 end=TRUE; //fin des fichiers
             }
             else{
                 do{
-                    stat=write(socket, "recu", 5);
+                    stat=write(socket, "recu", 5); //ack fichier
                 }while(stat<0);
                 index++;
-                //nom_fichier[n] = '\0';
                 printf("\t(%d): %s \n", index, nom_fichier);
                 bzero(nom_fichier, 256);
             }
             
     }
-    //do{
-    //    stat=write()
-   // }while(stat<0);
 
     couleur_reset();
     nbFichiers_total=index;
     printf("fichier total: %d \n", nbFichiers_total);
 }
 
-//flush
-void receiveFile(int socket){
+void receiveFile(int socket){ //reception de un fichier
     char *dir="../files_client";
     char nom_fichier[256];
     char path[500];
@@ -149,7 +138,6 @@ void receiveFile(int socket){
     do{
         stat = read(socket, &taille, sizeof(int));
     }while(stat<0);
-    // printf("Taille attendu %d: (oct\n", taille);
 
     do{
         stat=write(socket, "taille_ok", strlen("taille_ok")); // pour empecher le serveur d'envoyer autre chose que le nom
@@ -159,11 +147,9 @@ void receiveFile(int socket){
 
     char buffer[256];
  
-    int end=FALSE;
-    int nbWrite;
     int nb=0;
     int rcv_taille=0;
-
+    int nbWrite;
     while (rcv_taille <taille) {
         do{
             nb = read(socket, buffer, 256);
@@ -178,7 +164,6 @@ void receiveFile(int socket){
     } while (stat<0);
     
     fclose(fichier);
-    // printf("[+] Transfert complet: %d octets reçus\n",downloaded);
     couleur_rouge();
     printf("[+] Transfert %s complet (%d octets)\n",nom_fichier, rcv_taille );
     couleur_reset();
@@ -186,6 +171,7 @@ void receiveFile(int socket){
 }
 
 int fileCount(char* index_array, int total){
+    //compte les indice de fichier dans une chaine de caractère
     int size=strlen(index_array);
     int compteur_fichier=0; //nombre de fichier a envoyer
     char tmp[2];
@@ -213,6 +199,7 @@ int fileCount(char* index_array, int total){
 }
 
 void fetch(int socket){
+    //saisie des indices et boucle de reception des fichiers
     char index_array[20]="";
     int nbFichiers;
     int stat;
@@ -244,6 +231,7 @@ void fetch(int socket){
 }
 
 void promptList(int socket){ 
+    //menu telechargement fichier distant
     int stat;
     int cmd;
     do{
@@ -257,11 +245,11 @@ void promptList(int socket){
     if(cmd==CMD_FETCH){
         fetch(socket); //o
     }   
-    // } while (cmd!=CMD_EXIT);
 
 }
 
 void sendFile(char *nom_fichier, int socket){
+    //envoie un fichier au serveur
     char *dir="../files_client";
     char path[500];
     int stat;
@@ -271,14 +259,12 @@ void sendFile(char *nom_fichier, int socket){
     sprintf(path, "%s/%s",dir, nom_fichier); //concatene repertoire au nom du fichier
 
     FILE *fichier = fopen(path, "rb"); //on ouvre le fichier en mode binaire  
-    // FILE *fichier = fopen(path, "r"); //on ouvre le fichier en mode binaire  
     
     if (fichier == NULL) {
         perror("[-]Erreur ouverture fichier.\n");
         // exit(-1);
     }
     else{
-        // printf("[+]Ouverture fichier %s\n", path);
     }
 
      printf("envoie nom \n");
@@ -292,7 +278,6 @@ void sendFile(char *nom_fichier, int socket){
     }while(stat<0);
 
     if (strncmp(buffer_ok, "file_ok", 7)==0){ 
-        // printf("[+]ok nom\n");
     }
     //
 
@@ -305,14 +290,12 @@ void sendFile(char *nom_fichier, int socket){
     fseek(fichier, 0, SEEK_SET);
  
     printf("Taille: %i\n",taille);
-    //Send Picture Size
     printf("envoie taille\n");
     
     do{
         stat=write(socket, (void *)&taille, sizeof(int));
     }while (stat<0);
     
-    // printf("reading size_ok\n");
     do{
         stat=read(socket, buffer_ok, 256); //attend ok du client pour commencer a telecharger le fichier
     }while(stat<0);
@@ -322,7 +305,6 @@ void sendFile(char *nom_fichier, int socket){
     }
 
 
-    // int nb = fread(send_buffer, 1, sizeof(send_buffer), fichier);
     int nb;
     while (!feof(fichier))
     {
@@ -339,9 +321,8 @@ void sendFile(char *nom_fichier, int socket){
         stat=read(socket, send_buffer, 256);
     }while(stat<0);
 
-    // nb=write(socket, "fin_fichier", strlen("fin_fichier")); //on indique au client la fin de l'envoie
-     //on indique au client la fin de l'envoie
-    // printf("Send stop nb: %d octets\n", nb);
+    
+    
     fclose(fichier);    
 
     do{ //lis le mime (type)
@@ -354,7 +335,7 @@ void sendFile(char *nom_fichier, int socket){
 }
 
 void push(int socket){
-
+    //sasie et boucle d'envoie de fichier du client au serveur
     char index_array[20]="";
     int *index_list;
     int nbFichiers;
@@ -387,7 +368,7 @@ void push(int socket){
             if( ((i+1) < size) && index_array[i+1]!=' '){ //si caractère non nulet caracère suivant non nul
                 tmp[0]=index_array[i]; //on ajoute ces deux caractère dans un tempon
                 tmp[1]=index_array[i+1];
-                tmp[2]='\0';
+                //tmp[2]='\0';
                 index_list[cpt]=atoi(tmp); //on les convertit en entier
                 double_digit=TRUE; //on met le boolean a vrai pour ne pas compter deux fois a cause du deuxieme chiffre
                 cpt++;
@@ -411,7 +392,7 @@ void push(int socket){
     struct dirent *repertoire_entree;
     repertoire=opendir("../files_client");
     
-    int i=-1; //iterateur
+
 
     printf("nombre de fichiers %d \n", nbFichiers);
     printf("Fichiers a envoyer: \n");
@@ -425,6 +406,7 @@ void push(int socket){
         stat=read(socket,buffer_ok,100);
     }while(stat<0);
     
+    int i=-1; //iterateur -1 pour ne pas compter .. et . et pour que le premier fichier soit égal a 1
     while((repertoire_entree=readdir(repertoire))!=NULL){
     int file_exists=FALSE;
         if(i>=1){ //on ne prend pas en compte ./ et ../
@@ -449,10 +431,11 @@ void push(int socket){
 
 
 void display(){
+    //affichage d'image
     int indice=saisieEntier("Entrez l'indice du fichier que vous voulez afficher \n");
     int existe=FALSE;
     char *dir="../files_client";
-    char nom_fichier[256];
+    char nom_fichier[256]; //
     char path[500];
     DIR *repertoire;
     struct dirent *repertoire_entree;
@@ -461,7 +444,6 @@ void display(){
     
     int i=-1; //pour ne pas compter . et ..
     while( (existe == FALSE) && ((repertoire_entree=readdir(repertoire))!=NULL) ){
-        // printf("test file %s : %d | test  indice: %d\n",repertoire_entree->d_name, i, indice);
          if(i==indice){
             printf("trouvé\n");
             strcpy(nom_fichier, repertoire_entree->d_name);
@@ -489,8 +471,9 @@ void display(){
 }
 
 void promptListLocal(int socket){
+    //menu liste locale et envoie de fichier
     int cmd;
-    int stat;
+    int stat; //retour de read et write
 
     do{
         cmd= saisieEntier("\n1.Afficher une image \n2. Envoyer un ou des fichiers au serveur\n0. Retour\nCommandes (entrez un entier) ");
@@ -516,7 +499,7 @@ void promptListLocal(int socket){
  
 }
 void listLocal(){
-    
+    //reception et affichage des fichier distants
     char nom_fichier[256];
     DIR *repertoire;
     struct dirent *repertoire_entree;
@@ -538,12 +521,12 @@ void listLocal(){
 }
 
 void prompt(int socket){
-    int cmd;
-    int stat;
+    //menu principal
+    int cmd; //commande
+    int stat;//retour de read et write
     do
     {
         cmd = saisieEntier("\n1. Liste des fichiers (télécharger)\n2. Liste des fichiers locaux (envoyer et afficher)\n0. Quitter\n\nCommande: (entrez un entier) ");
-        // printf("cmd: %d\n", cmd);
         if(cmd>0 && cmd<=2){
 
             switch (cmd)
@@ -560,14 +543,11 @@ void prompt(int socket){
                 //liste local envoie et display
                 listLocal();
                 promptListLocal(socket);
-                // cmd=0; //temporaire
                 break;
             default:
-                // printf("Debug default\n");
                 break;
             }
         }
-    // } while (cmd!=CMD_EXIT);
     } while (cmd!=CMD_EXIT);
 }
 
